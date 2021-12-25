@@ -1,4 +1,3 @@
-import logging
 import datetime
 
 import pandas as pd
@@ -87,15 +86,14 @@ def add_lob_prices(market_orders, start_date, end_date, LOB_folder, LOB_prefix):
     """
     for dt in date_range(start_date, end_date, only_workdays=True):
         fname = LOB_folder + LOB_prefix + dt.strftime('%m%d') + '.feather'
-        logging.info(fname)
         try:
             lob_df = pd.read_feather(fname)
         except FileNotFoundError:
-            logging.warning(f"{dt} skipped")
+            print(f"{dt} skipped")
             continue
 
         if lob_df.shape[0] == 0:
-            logging.warning(f"{fname} no quotes")
+            print(f"{fname} no quotes")
             continue
 
         order_time, lob_time, lob_bid, lob_ask = extract_day(dt, market_orders, LOB_folder, LOB_prefix)
@@ -111,13 +109,13 @@ def add_lob_prices(market_orders, start_date, end_date, LOB_folder, LOB_prefix):
 
 
 def main(data_file_name, LOB_folder, LOB_prefix, start_date, end_date, output_file_name):
-    logging.info('1. Read data')
+    print('1. Read data')
     data = pd.read_feather(data_file_name)
-    logging.info('2. Preprocess data')
+    print('2. Preprocess data')
     market_orders = preprocess_deals_data(data)
-    logging.info('3. Add market quotes')
+    print('3. Add market quotes')
     market_orders = add_lob_prices(market_orders, start_date, end_date, LOB_folder, LOB_prefix)
-    logging.info('4. Save result')
+    print('4. Save result')
     market_orders.to_feather(output_file_name)
     # print(market_orders[:5])
 
@@ -127,5 +125,5 @@ if __name__ == "__main__":
          'Data\\LOB_USDRUB\\', 'LOB_',
          datetime.datetime.strptime('2021-02-01', '%Y-%m-%d'),
          datetime.datetime.strptime('2021-10-06', '%Y-%m-%d'),
-         'market_orders_USDRUB.feather')
+         'market_orders_USDRUB_.feather')
     print('Done!')

@@ -7,13 +7,12 @@ from multiprocessing.pool import ThreadPool
 @numba.njit(fastmath=True)
 def brownian_motion(mu=0., sigma=1., dt=1., steps=1, s=0.0, ticksize=0.):
     """
-    Function returns Brownian motion price
+    Function returns Brownian motion prices
     dS = mu * dt + sigma * sqrt(dt) * E, E - std normal
-    Parameters
-    s - start price
-    dt - time quant, sigma always used for T=1
-    mu, sigma - normal distribution parameters
-    steps - steps ahead for generating prices
+    :param s: start price
+    :param dt: time quant
+    :param mu, sigma: Brownian motion parameters
+    :param steps: steps ahead for generating prices
     """
     prices = s + np.cumsum(np.ones(steps)*mu*dt + np.random.randn(steps)*sigma*dt**0.5) 
     if ticksize==0.:
@@ -25,9 +24,10 @@ def brownian_motion(mu=0., sigma=1., dt=1., steps=1, s=0.0, ticksize=0.):
 @numba.njit(fastmath=True)
 def market_order_touch_limit(A, k, delta, dt):
     """
-    A = L/alpha and k = alpha*K - market parameters in model
-    delta - distance from mid
-    dt - time quant
+    Check whether order executed or not
+    :param A, k: A = L/alpha and k = alpha*K - market parameters in model
+    :param delta: distance from mid
+    :param dt: time quant
     Returns True if market order happens and touch limit
     """
     prob = A * np.exp(-k * delta) * dt
@@ -38,13 +38,13 @@ def market_order_touch_limit(A, k, delta, dt):
 def mm_limit_order(s, t, q, mu, sigma, gamma, k, T):
     """
     Function returns AS-model order r-price and spread
-    s - current price
-    t - current time
-    q - current inventory
-    sigma -  standart deviation of mid price brownian motion parameters
-    k - market parameter
-    T - time horizon
-    gamma - risk aversion
+    :param s: current price
+    :param t: current time
+    :param q: current inventory
+    :param mu, sigma:  mid price Brownian motion parameters
+    :param k: market parameter (k = alpha*K)
+    :param T: time horizon
+    :param gamma: risk aversion
     """
 
     theta_1 = s + mu * (T - t)
@@ -73,10 +73,10 @@ def init_df_deals(start_price, start_wealth=0, start_inventory=0):
             'PnL': [0.]}
     return pd.DataFrame.from_dict(data)
 
-# Add numpy array from simulation to deals DF
+
 def add_df_deals(df_deals, np_deals):
     """
-    Add deals from array to dataframe
+    Add deals from numpy.ndarray to result dataframe.
     :param df_deals: dataframe with deals from previous run or empty dataframe
     :param np_deals: numpy.ndarray of deals
     :return: new dataframe with deals
@@ -90,11 +90,15 @@ def add_df_deals(df_deals, np_deals):
 @numba.njit(fastmath=True)
 def simulation_run(np_deals, gamma, A, k, T, dt, mu, sigma, ticksize=0., max_spread=None):
     """
-    Run one simulation of model
-    Return numpy array with deals
-    Array structure:
+    Run one simulation of model. Function uses only numpy.arrays for numba
+    Return numpy array with deals appended to previous one.
+    Input deals array structure:
         0     1       2          3          4    5    6    7       8        9
         Time, Wealth, Inventory, Deal_side, Mid, Bid, Ask, R-price, Spread, PnL
+    :param gamma: risk aversion
+    :param A, K, t, dt, mu, sigma: model parameters
+    :param ticksize: size of the tick for rounding
+    :param max_spread: limit for maximum spread
     """
     t0 = np_deals[-1, 0]  # last time
     W = np_deals[-1, 1]  # initial wealth (t=0)
@@ -154,12 +158,14 @@ def simulation_run(np_deals, gamma, A, k, T, dt, mu, sigma, ticksize=0., max_spr
 def simulation_symm_run(np_deals, spread_start, spread_end, A, k, T, dt, mu, sigma, ticksize=0.):
     """
     Run simulation with simple strategy (linear or constant spread)
-    Spread is around the mid price
+    Spread is around the mid price.
     Spread is a linear function of time, in the most simple case constant
     Return numpy array with deals
     Array structure:
         0     1       2          3          4    5    6    7       8        9
         Time, Wealth, Inventory, Deal_side, Mid, Bid, Ask, R-price, Spread, PnL
+    :param spread_start, spread_end: spread at t=0 and at t=T
+    :param ticksize: size of the tick for rounding
     """
     
     t0 = np_deals[-1, 0]  # last time
@@ -245,19 +251,43 @@ def run_sims(n, multicore=1, **kwargs):
         'Final Q inv': np_deals[:, -1, 2],
         'PnL const': np_deals_symm[:, -1, 9],
         'Final Q const': np_deals_symm[:, -1, 2],
+        'Spread inv': np_deals[:, :, 8].mean(axis=1),
+        'Spread const': np_deals_symm[:, :, 8].mean(axis=1),
+        'Max Q inv': np.abs(np_deals[:, :, 2]).max(axis=1),
+        'Max Q const': np.abs(np_deals_symm[:, :, 2]).max(axis=1),
+        'N inv': np.where(np_deals[:, :, 3]!=0, 1, 0).sum(axis=1),
+        'N const': np.where(np_deals_symm[:, :, 3]!=0, 1, 0).sum(axis=1)
     }
 
-    return pd.DataFrame(data, columns=res_columns)
+    return pd.DataFrame(data)
 
 # numba multiperiod run functions
 @numba.njit(fastmath=True)
 def sim_multiperiod_run(periods, np_deals, gamma, A, k, T, dt, mu, sigma, ticksize):
+    """
+    Run sequence of simulations for Stoikov model
+    :param periods: sequence size
+    :param np_deals: previous deals array
+    :param gamma: risk aversion
+    :param A, K, t, dt, mu, sigma: model parameters
+    :param ticksize: size of the tick for rounding
+    :return: numpy array of the deals
+    """
     for _ in range(periods):
         np_deals = simulation_run(np_deals, gamma, A, k, T, dt, mu, sigma, ticksize)
     return np_deals
 
 @numba.njit(fastmath=True)
 def sim_multiperiod_symm_run(periods, np_deals, start_spread, end_spread, A, k, T, dt, mu, sigma, ticksize):
+    """
+    Run sequence of simulations for simple equidistant model
+    :param periods: sequence size
+    :param np_deals: previous deals array
+    :param gamma: risk aversion
+    :param A, K, t, dt, mu, sigma: model parameters
+    :param ticksize: size of the tick for rounding
+    :return: numpy array of the deals
+    """
     for _ in range(periods):
         np_deals = simulation_symm_run(np_deals, start_spread, end_spread, A, k, T, dt, mu, sigma, ticksize)
     return np_deals

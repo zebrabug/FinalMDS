@@ -321,3 +321,9 @@ class Market:
         df_res['BID'] = bids
         df_res['ASK'] = asks
         return df_res
+
+def main():
+    pass
+
+if __name__ == '__main__':
+    main()

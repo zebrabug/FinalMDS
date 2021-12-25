@@ -68,17 +68,19 @@ def PM(x, x_min=None, method='PM'):
     where P75 and P25 - 75 and 25 percentile correspondingly
     '''
     if x_min:
-        x = x[x > x_min]
-    
+        x = x[x >= x_min]
+    q3, q2, q1 = np.quantile(x, [0.75, 0.50, 0.25])
+    # print(q3, q2, q1)
+
     if method == 'PM':
-        p_high, p_low = np.quantile(x, [0.75, 0.25])
-        return math.log(3) / (math.log(p_high) - math.log(p_low))
+        return math.log(3) / (math.log(q3) - math.log(q1))
+
     elif method == 'MPM':
-        p_high, p_low = np.quantile(x, [0.75, 0.5])
-        return math.log(2) / (math.log(p_high) - math.log(p_low))
+        return math.log(2) / (math.log(q3) - math.log(q2))
+
     elif method == 'GMPM':
-        p_high = np.quantile(x, 0.75)
-        return (1 - math.log(4)) / (np.mean(np.log(x)) - math.log(p_high))
+        return (1 - math.log(4)) / (np.mean(np.log(x)) - math.log(q3))
+
     else:
         raise ValueError('Incorrect method. Should be PM or MPM or GMPM')
 
