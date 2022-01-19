@@ -1,7 +1,7 @@
 # FinalMDS
 
 Structure of sources is the following.
-Main file of research is [Thesis brief](Thesis%20brief.ipynb), which contains imports for necessary modules
+Main file of research is [Thesis report](Thesis%20report.ipynb), which contains imports for necessary modules
 
 Modules used:
 - [preprocess.py]() contain functions for data input and preprocessing. More info in preprocessing section. All preprocessing is consolidated in a [Preprocessing.ipynb]() notebook. More about data formats in preprocessing section.
